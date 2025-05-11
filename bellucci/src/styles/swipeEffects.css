@@ -1,0 +1,120 @@
+/* Swipe feedback styles */
+.swipe-feedback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.feedback-like, .feedback-dislike, .feedback-buy {
+  position: absolute;
+  padding: 10px 25px;
+  border-radius: 5px;
+  font-size: 24px;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.feedback-like {
+  right: 20px;
+  color: #4CAF50;
+  border: 3px solid #4CAF50;
+  transform: rotate(10deg);
+}
+
+.feedback-dislike {
+  left: 20px;
+  color: #ff6b6b;
+  border: 3px solid #ff6b6b;
+  transform: rotate(-10deg);
+}
+
+.feedback-buy {
+  top: 20px;
+  color: #2196F3;
+  border: 3px solid #2196F3;
+}
+
+.swipe-container {
+  width: 380px;
+  max-width: 95vw;
+  height: 520px;
+  margin: 30px auto;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  perspective: 1000px;
+}
+
+.swipe-card {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-style: preserve-3d;
+  cursor: grab;
+  user-select: none;
+}
+
+/* Swipe animations */
+.swipe-left {
+  transform: translateX(-150%) rotate(-30deg) scale(0.8);
+  opacity: 0;
+}
+
+.swipe-right {
+  transform: translateX(150%) rotate(30deg) scale(0.8);
+  opacity: 0;
+}
+
+.swipe-up {
+  transform: translateY(-150%) rotateX(45deg) scale(0.7);
+  opacity: 0;
+}
+
+.buy-pulse {
+  animation: pulse 0.5s ease-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(33, 150, 243, 0.5); }
+  100% { transform: scale(1); }
+}
+
+.buy-confirmation {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #2196F3;
+  color: white;
+  text-align: center;
+  padding: 15px;
+  font-weight: bold;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.end-message {
+  text-align: center;
+  font-size: 1.5rem;
+  margin: 40px auto;
+  color: #666;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 10px;
+}
