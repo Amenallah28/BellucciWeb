@@ -10,7 +10,7 @@ from bson import ObjectId
 
 # Connect to local MongoDB
 client = MongoClient("mongodb://localhost:27017/")
-db = client["bellucci_db"]  # This is your database name
+db = client["bellucci_db"]
 
 # Initialize Flask
 app = Flask(__name__)
@@ -83,6 +83,10 @@ def create_or_update_user():
     description = data.get('description')
     phone = data.get('phone')
 
+    # Buyer fields
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
+
     if not firebase_uid or not email:
         return jsonify({'error': 'Missing firebase_uid or email'}), 400
 
@@ -99,6 +103,12 @@ def create_or_update_user():
         user_doc["business_name"] = business_name
         user_doc["description"] = description
         user_doc["phone"] = phone
+
+    # Add buyer fields if present
+    if first_name:
+        user_doc["first_name"] = first_name
+    if last_name:
+        user_doc["last_name"] = last_name
 
     db["users"].update_one(
         {"firebase_uid": firebase_uid},
@@ -130,6 +140,46 @@ def get_my_user():
         return jsonify(user)
     except Exception as e:
         print("Error in /api/user/me:", str(e))
+        return jsonify({"error": str(e)}), 400
+    
+
+
+@app.route('/api/user/me', methods=['PUT'])
+@verify_token
+def update_my_user():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        firebase_uid = decoded['uid']
+
+        data = request.json
+        # Only allow updating certain fields
+        allowed_fields = [
+            "email", "preferences", "business_name", "description", "phone", "role", "first_name", "last_name"
+        ]
+        update_fields = {k: v for k, v in data.items() if k in allowed_fields}
+
+        if not update_fields:
+            return jsonify({"error": "No valid fields to update"}), 400
+
+        update_fields["updated_at"] = datetime.utcnow()
+
+        result = db["users"].update_one(
+            {"firebase_uid": firebase_uid},
+            {"$set": update_fields}
+        )
+
+        if result.matched_count == 0:
+            return jsonify({"error": "User not found"}), 404
+
+        # Return updated user
+        user = db["users"].find_one({"firebase_uid": firebase_uid})
+        user["_id"] = str(user["_id"])
+        return jsonify(user), 200
+
+    except Exception as e:
+        print("Error in PUT /api/user/me:", str(e))
         return jsonify({"error": str(e)}), 400
 
 
@@ -440,10 +490,147 @@ def delete_seller_product(product_id):
         return jsonify({"error": str(e)}), 500
     
 
-@app.route("/")
-def home():
-    return "Bellucci Backend is running"
+# Place a new order (buyer)
+@app.route('/api/orders', methods=['POST'])
+@verify_token
+def place_order():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        buyer_id = decoded['uid']
+
+        # Get buyer's cart
+        user = db["users"].find_one({"firebase_uid": buyer_id})
+        if not user or "cart" not in user or not user["cart"]:
+            return jsonify({"error": "Cart is empty"}), 400
+
+        # Get item details
+        items = list(db["clothing_items"].find({"id": {"$in": user["cart"]}}))
+        if not items:
+            return jsonify({"error": "No valid items in cart"}), 400
+
+        # Group items by seller
+        seller_orders = {}
+        for item in items:
+            seller_id = item.get("seller_id", "unknown")
+            if seller_id not in seller_orders:
+                seller_orders[seller_id] = []
+            seller_orders[seller_id].append(item)
+
+        order_ids = []
+        for seller_id, seller_items in seller_orders.items():
+            total = sum(item["price"] for item in seller_items)
+            order_doc = {
+                "buyer_id": buyer_id,
+                "seller_id": seller_id,
+                "items": [
+                    {
+                        "id": item["id"],
+                        "name": item["name"],
+                        "price": item["price"],
+                        "quantity": 1  # You can expand this if you add quantity support
+                    } for item in seller_items
+                ],
+                "total": total,
+                "status": "pending",
+                "created_at": datetime.utcnow()
+            }
+            result = db["orders"].insert_one(order_doc)
+            order_ids.append(str(result.inserted_id))
+
+        # Clear buyer's cart
+        db["users"].update_one(
+            {"firebase_uid": buyer_id},
+            {"$set": {"cart": []}}
+        )
+
+        return jsonify({"message": "Order(s) placed!", "order_ids": order_ids}), 201
+
+    except Exception as e:
+        print("Error in POST /api/orders:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+# Seller: Get all orders for their products
+@app.route('/api/seller/orders', methods=['GET'])
+@verify_token
+def get_seller_orders():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        seller_id = decoded['uid']
+
+        # Find all orders for this seller
+        orders = list(db["orders"].find({"seller_id": seller_id}))
+        for order in orders:
+            order["_id"] = str(order["_id"])
+        # Lookup buyer info
+            buyer = db["users"].find_one({"firebase_uid": order["buyer_id"]})
+            if buyer:
+                order["buyer_email"] = buyer.get("email", "")
+                order["buyer_name"] = f"{buyer.get('first_name', '')} {buyer.get('last_name', '')}".strip()
+            else:
+                order["buyer_email"] = ""
+                order["buyer_name"] = ""
+        return jsonify({"orders": orders}), 200
+
+    except Exception as e:
+        print("Error in GET /api/seller/orders:", str(e))
+        return jsonify({"error": str(e)}), 500
+    
+
+@app.route('/api/orders', methods=['GET'])
+@verify_token
+def get_buyer_orders():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        buyer_id = decoded['uid']
+
+        orders = list(db["orders"].find({"buyer_id": buyer_id}))
+        for order in orders:
+            order["_id"] = str(order["_id"])
+        return jsonify({"orders": orders}), 200
+
+    except Exception as e:
+        print("Error in GET /api/orders:", str(e))
+        return jsonify({"error": str(e)}), 500
+    
+
+@app.route('/api/seller/orders/<order_id>/status', methods=['PUT'])
+@verify_token
+def update_order_status(order_id):
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        seller_id = decoded['uid']
+
+        data = request.json
+        new_status = data.get("status")
+        if new_status not in ["pending", "shipped", "delivered", "cancelled"]:
+            return jsonify({"error": "Invalid status"}), 400
+
+        # Only allow seller to update their own orders
+        result = db["orders"].update_one(
+            {"_id": ObjectId(order_id), "seller_id": seller_id},
+            {"$set": {"status": new_status}}
+        )
+        if result.matched_count == 0:
+            return jsonify({"error": "Order not found or not authorized"}), 404
+
+        return jsonify({"message": "Order status updated!"}), 200
+
+    except Exception as e:
+        print("Error in PUT /api/seller/orders/<order_id>/status:", str(e))
+        return jsonify({"error": str(e)}), 500
+    
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
 
