@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import ClosetPage from './pages/ClosetPage';
@@ -14,14 +14,20 @@ import SellerAddProductPage from './pages/SellerAddProductPage';
 import SellerOrdersPage from './pages/SellerOrdersPage';
 import ProtectedRoute from './ProtectedRoute';
 import SellerProtectedRoute from './SellerProtectedRoute';
+import LandingPage from './components/LandingPage.js';
 import Navbar from './components/Navbar';
 
-function App() {
+// This component will conditionally render the Navbar
+function Layout() {
+  const location = useLocation();
+  const showNavbar = !['/', '/auth'].includes(location.pathname);
+  
   return (
-    <Router>
-      <Navbar />
+    <>
+      {showNavbar && <Navbar />}
       <Routes>
-        <Route path="/" element={<AuthPage />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<AuthPage />} />
         <Route path="/seller-register" element={<SellerRegisterPage />} />
         <Route
           path="/home"
@@ -72,40 +78,52 @@ function App() {
           }
         />
         <Route
-  path="/seller-products"
-  element={
-    <SellerProtectedRoute>
-      <SellerProductsPage />
-    </SellerProtectedRoute>
-  }
-/>
-<Route
-  path="/seller-add-product"
-  element={
-    <SellerProtectedRoute>
-      <SellerAddProductPage />
-    </SellerProtectedRoute>
-  }
-/>
-<Route
-  path="/seller-orders"
-  element={
-    <SellerProtectedRoute>
-      <SellerOrdersPage />
-    </SellerProtectedRoute>
-  }
-/>
+          path="/seller-products"
+          element={
+            <SellerProtectedRoute>
+              <SellerProductsPage />
+            </SellerProtectedRoute>
+          }
+        />
+        <Route
+          path="/seller-add-product"
+          element={
+            <SellerProtectedRoute>
+              <SellerAddProductPage />
+            </SellerProtectedRoute>
+          }
+        />
+        <Route
+          path="/seller-orders"
+          element={
+            <SellerProtectedRoute>
+              <SellerOrdersPage />
+            </SellerProtectedRoute>
+          }
+        />
         <Route
           path="/contact"
           element={
             <ProtectedRoute>
               <ContactPage />
-           </ProtectedRoute>
+            </ProtectedRoute>
           }
         />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Layout />
     </Router>
   );
 }
 
 export default App;
+
+
+
+
