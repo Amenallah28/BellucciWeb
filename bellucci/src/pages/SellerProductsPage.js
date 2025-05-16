@@ -74,6 +74,7 @@ export default function SellerProductsPage() {
       description: prod.description,
       quantity: prod.quantity,
       sizes: (prod.sizes || []).join(","),
+      event: prod.event,
     });
     setEditError("");
   };

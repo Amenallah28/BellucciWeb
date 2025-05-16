@@ -88,6 +88,7 @@ export default function SellerAddProductPage() {
         <input style={inputStyle} name="price" placeholder="Price" value={form.price} onChange={handleChange} type="number" min="0" step="0.01" required />
         <input style={inputStyle} name="quantity" placeholder="Quantity in stock" value={form.quantity} onChange={handleChange} type="number" min="1" required />
         <input style={inputStyle} name="sizes" placeholder="Available sizes (comma separated, e.g. S,M,L)" value={form.sizes} onChange={handleChange} />
+        <input style={inputStyle} name="event" placeholder="event" value={form.event} onChange={handleChange} required />
         <textarea style={{ ...inputStyle, height: 80 }} name="description" placeholder="Description" value={form.description} onChange={handleChange} />
         <label style={{ display: "block", margin: "12px 0" }}>
           <input type="checkbox" name="inStock" checked={form.inStock} onChange={handleChange} />
