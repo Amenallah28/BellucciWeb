@@ -286,6 +286,7 @@ def get_cart():
     return jsonify({"cart": items})
 
 
+
 @app.route('/api/clothing-items', methods=['GET'])
 def get_clothing_items():
     items = list(db["clothing_items"].find())
@@ -370,7 +371,7 @@ def add_seller_product():
 
         data = request.json
         # Validate required fields
-        required_fields = ['name', 'brand', 'category', 'image', 'price']
+        required_fields = ['name', 'brand', 'category', 'image', 'price','event']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'Missing field: {field}'}), 400
@@ -390,6 +391,7 @@ def add_seller_product():
             "sizes": data.get("sizes", []),
             "inStock": data.get("inStock", True),
             "description": data.get("description", ""),
+            "event": data["event"],
             "seller_id": seller_uid,
             "created_at": datetime.utcnow()
         }
@@ -442,7 +444,7 @@ def edit_seller_product(product_id):
             return jsonify({"error": "Product not found or not authorized"}), 404
 
         update_fields = {}
-        for field in ["name", "brand", "category", "image", "price", "inStock", "description", "quantity", "sizes"]:
+        for field in ["name", "brand", "category", "image", "price", "inStock", "description","event", "quantity", "sizes"]:
             if field in data:
                 update_fields[field] = data[field]
 
@@ -529,7 +531,7 @@ def place_order():
                         "id": item["id"],
                         "name": item["name"],
                         "price": item["price"],
-                        "quantity": 1  # You can expand this if you add quantity support
+                        "quantity": 1 
                     } for item in seller_items
                 ],
                 "total": total,
