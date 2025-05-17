@@ -89,7 +89,7 @@ function AuthPage() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.logo}>Bellucci</h1>
+      <h1 style={styles.logo}>BELLUCCI</h1>
       <form onSubmit={handleAuth} style={styles.form}>
         {!isLogin && (
           <>
