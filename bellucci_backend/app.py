@@ -217,6 +217,41 @@ def record_interaction():
     except Exception as e:
         print(f"Error in /api/interactions: {str(e)}")
         return jsonify({'error': str(e)}), 500
+    
+
+@app.route('/api/user/swiped-items', methods=['GET'])
+@verify_token
+def get_swiped_items():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        firebase_uid = decoded['uid']
+
+        # Get all item_ids the user has interacted with (like/dislike/save/purchase)
+        swiped = db["user_interactions"].find({"user_id": firebase_uid})
+        swiped_ids = list({interaction["item_id"] for interaction in swiped})
+        return jsonify({"swiped_item_ids": swiped_ids}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+@app.route('/api/user/swiped-items', methods=['DELETE'])
+@verify_token
+def reset_swiped_items():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        firebase_uid = decoded['uid']
+
+        db["user_interactions"].delete_many({"user_id": firebase_uid})
+        return jsonify({"message": "Swiped items reset!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+
 
 @app.route('/api/cart/add', methods=['POST'])
 @verify_token
@@ -285,6 +320,39 @@ def get_cart():
         item["_id"] = str(item["_id"])
     return jsonify({"cart": items})
 
+@app.route('/api/cart/remove', methods=['POST'])
+@verify_token
+def remove_from_cart():
+    try:
+        # Get user ID from token
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.replace('Bearer ', '')
+        decoded = auth.verify_id_token(token)
+        firebase_uid = decoded['uid']
+
+        data = request.json
+        item_id = data.get('item_id')
+
+        if not item_id:
+            return jsonify({'error': 'Missing item_id'}), 400
+
+        # Remove from cart
+        result = db["users"].update_one(
+            {"firebase_uid": firebase_uid},
+            {
+                "$pull": {"cart": item_id},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+
+        if result.modified_count == 0:
+            return jsonify({'message': 'Item not in cart'}), 200
+
+        return jsonify({'message': 'Item removed from cart!'}), 200
+
+    except Exception as e:
+        print(f"Error in /api/cart/remove: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/clothing-items', methods=['GET'])
@@ -633,6 +701,4 @@ def update_order_status(order_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
-
 
