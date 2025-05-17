@@ -1,4 +1,3 @@
-// ... existing imports ...
 import React, { useEffect, useState } from "react";
 import { auth } from "../firebase";
 import { API_BASE_URL } from "../config";
@@ -56,10 +55,37 @@ export default function CartPage() {
     }
   };
 
+  const removeFromCart = async (itemId) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await user.getIdToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/cart/remove`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          item_id: itemId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to remove item from cart");
+      }
+
+      // Update local state to reflect removal
+      setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
+    } catch (error) {
+      console.error("Error removing item from cart:", error);
+    }
+  };
+
   useEffect(() => {
     fetchCart();
     fetchOrders();
-    // eslint-disable-next-line
   }, []);
 
   const handlePlaceOrder = async () => {
@@ -119,8 +145,31 @@ export default function CartPage() {
                 background: "#fafafa",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center"
+                alignItems: "center",
+                position: "relative"
               }}>
+                <button
+                  onClick={() => removeFromCart(item.id)}
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    background: "#ff4444",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "50%",
+                    width: 28,
+                    height: 28,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: 14
+                  }}
+                  title="Remove from cart"
+                >
+                  ×
+                </button>
                 <img
                   src={item.image}
                   alt={item.name}
@@ -133,23 +182,27 @@ export default function CartPage() {
               </div>
             ))}
           </div>
-          <button
-            onClick={handlePlaceOrder}
-            disabled={placingOrder}
-            style={{
-              marginTop: 32,
-              background: "#000",
-              color: "#fff",
-              border: "none",
-              borderRadius: 10,
-              padding: "15px 30px",
-              fontWeight: 600,
-              fontSize: 18,
-              cursor: "pointer"
-            }}
-          >
-            {placingOrder ? "Placing Order..." : "Place Order"}
-          </button>
+          <div style={{ marginTop: 32, display: "flex", alignItems: "center", gap: 16 }}>
+            <button
+              onClick={handlePlaceOrder}
+              disabled={placingOrder}
+              style={{
+                background: "#000",
+                color: "#fff",
+                border: "none",
+                borderRadius: 10,
+                padding: "15px 30px",
+                fontWeight: 600,
+                fontSize: 18,
+                cursor: "pointer"
+              }}
+            >
+              {placingOrder ? "Placing Order..." : "Place Order"}
+            </button>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>
+              Total: ${cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
+            </div>
+          </div>
           {orderSuccess && <div style={{ color: "#080", marginTop: 16 }}>{orderSuccess}</div>}
           {orderError && <div style={{ color: "#c00", marginTop: 16 }}>{orderError}</div>}
         </>
