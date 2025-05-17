@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSwipeable } from "react-swipeable";
 import ClothingCard from "./ClothingCard";
 import "../styles/swipeEffects.css";
@@ -9,23 +9,30 @@ export default function ClothingSwiper({
   savedIds,
   onSaveToggle,
   onCardClick,
+  currentIndex = 0,
 }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Use the currentIndex prop as the source of truth
+  const [internalIndex, setInternalIndex] = useState(currentIndex);
   const [swipeDirection, setSwipeDirection] = useState(null);
   const [isBuying, setIsBuying] = useState(false);
   const [swipePosition, setSwipePosition] = useState({ x: 0, y: 0 });
 
+  // Keep internalIndex in sync with prop
+  useEffect(() => {
+    setInternalIndex(currentIndex);
+  }, [currentIndex, items.length]);
+
   const handleSwipe = (dir) => {
     setSwipeDirection(dir);
     setIsBuying(dir === "up");
-    
+
     setTimeout(() => {
-      const currentItem = items[currentIndex];
+      const currentItem = items[internalIndex];
       if (onSwipe) onSwipe(dir, currentItem);
-      setCurrentIndex(currentIndex + 1);
       setSwipeDirection(null);
       setIsBuying(false);
       setSwipePosition({ x: 0, y: 0 });
+      setInternalIndex((prev) => prev + 1);
     }, 500);
   };
 
@@ -37,22 +44,21 @@ export default function ClothingSwiper({
     onSwipedRight: () => handleSwipe("right"),
     onSwipedUp: () => handleSwipe("up"),
     onTap: (e) => {
-    // Only trigger card click if the tap wasn't on the save button
-    if (!e.event.target.closest('.save-button')) {
-      const currentItem = items[currentIndex];
-      onCardClick && onCardClick(currentItem);
-    }
-  },
+      if (!e.event.target.closest('.save-button')) {
+        const currentItem = items[internalIndex];
+        onCardClick && onCardClick(currentItem);
+      }
+    },
     trackMouse: true,
     delta: 15,
     preventDefaultTouchmoveEvent: true,
   });
 
-  if (currentIndex >= items.length) {
+  if (internalIndex >= items.length) {
     return <div className="end-message">No more items to show!</div>;
   }
 
-  const currentItem = items[currentIndex];
+  const currentItem = items[internalIndex];
   const cardClasses = [
     "swipe-card",
     swipeDirection ? `swipe-${swipeDirection}` : "",
